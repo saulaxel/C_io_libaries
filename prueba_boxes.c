@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "boxnmore.h"
+#include "./Biblioteca_Cajas/boxnmore.h"
 
 int main() {
     printf("Bienvenido a la prueba de la biblioteca \"boxnmore.h\"\n");
