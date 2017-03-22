@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "./Biblioteca_Entrada/easyin.h"
 
-int main() {
+int main(void) {
     int i;
     float f;
     char c;
@@ -9,6 +9,7 @@ int main() {
 
     printf("Las funciones de esta biblioteca se demuestran a continuaciOn\n\n");
 
+    pedirPalabra();
     printf("ejemplo 1: pedirEntero();\n");
     i = pedirEntero();
     printf("El valor ingresado es: %d\n\n", i);
