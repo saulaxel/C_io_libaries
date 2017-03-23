@@ -15,63 +15,136 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/*=========================================================*
+ * Library     : easyin                                    *
+ * Description : Some functions to read data from the user *
+ *               without painox                            * 
+ *=========================================================*/
 
 #ifndef _EASY_IN_H
 #define _EASY_IN_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdbool.h>
-#include <limits.h>
-#include <float.h>
+//  ##### Dependencies #####  \\
+
+#include <stdio.h>     // Data output (printf, fgets)
+#include <stdlib.h>    // Allocating memory (malloc)
+#include <string.h>    // Managin strings (strlen, strcpy)
+#include <ctype.h>     // Type-checking functions (isgraph and any other)
+#include <stdbool.h>   // _Bool as bool
+#include <limits.h>    // Limits of the integer types
+#include <float.h>     // Limits of the float types
 
 #ifdef _WIN32
-    #include <conio.h>
+    #include <conio.h> // Immediate reading (getch)
+    #define CLEAR "cls"
 #else
     // getch equivalent from:
     // http://stackoverflow.com/questions/7469139/what-is-equivalent-to-getch-getche-in-linux
 
     #include <termios.h>
+    static struct termios normal, no_buffer;
 
-    char getch() {
-        static struct termios old, new;
+    static inline void config_termios(bool echo) {
+        tcgetattr(0, &normal);
+
+        no_buffer = normal;
+        no_buffer.c_lflag &= ~ICANON;
+
+        if( echo )  { no_buffer.c_lflag |= ECHO;  }
+        else        { no_buffer.c_lflag &= ~ECHO; }
+    }
+
+    char getch(void) {
         char c;
 
-        tcgetattr(0, &old);
-        new = old;
-        new.c_lflag &= ~ICANON;
-        tcsetattr(0, TCSANOW, &new);
+        config_termios(true);
+
+        tcsetattr(0, TCSANOW, &no_buffer);
 
         c = getchar();
 
-        tcsetattr(0, TCSANOW, &old);
+        tcsetattr(0, TCSANOW, &normal);
 
         return c;
     }
+    #define CLEAR "clear"
 #endif // end _WIN32
 
-//  ##### PRIVATE DECLARATIONS #####  \\
+typedef struct {
+    char * request;
+    char * error_message;
+    int min_value;
+    int max_value;
+}int_request_t;
 
-static bool valid_input; // Boolean flag to validate input
+typedef struct {
+    char * request;
+    char * error_message;
+    int (* valid_char)(int);
+} char_request_t;
 
-static void clean_buffer(void) {
-    char c;
+typedef struct {
+    char * request;
+    char * error_message;
+    double min_value;
+    double max_value;
+} double_request_t;
 
-    while( (c = getchar()) != '\n' &&  c != EOF );
-}
+typedef struct {
+    char * s;
+    char * request;
+    int max_len;
+} string_request_t;
+
+typedef struct {
+    char * s;
+    char * request;
+    char * error_message;
+    char * range_message;
+
+    int (* valid_char)(int);
+
+    int min_len;
+    int max_len;
+
+    bool hidden;
+} stringscr_request_t;
+
+// ##### FUNCTION PROTOTYPES ##### \\
+
+static int _askfint(const char * restrict, const char * restrict,
+        const int _minval, const int _maxval);
+static double _askfdouble(const char * restrict, const char * restrict,
+        const double _minval, const double _maxval);
+static char _askfchar(const char * restrict, const char * restrict,
+        int (* _valid_char)(int));
+static void _askfwrd(char * restrict, const char * restrict,
+        const int _max_size);
+static void _askfline(char * restrict, const char * restrict,
+        const int _max_size);
+
+static void _pedir_cadena(bool line, string_request_t args);
+static double _pedir_doble(double_request_t args);
+static char _pedir_caracter(char_request_t args);
+static int _pedir_entero( int_request_t args );
+
+extern void clean_buffer(void);
+
+//  ##### PRIVATE DECLARATIONSDECLARATIONS #######
+//  # Functions and variables for indirect use,  #
+//  # these are only visible in the translation  #
+//  # unit the library was included in.          #
+//  ##############################################
+
+static bool _valid_input; // Boolean flag to validate input
 
 /*
- * _askfint: 
- *      const char *_request, const char *_err_msg,
- *      int _minval, int _maxval 
- *      -> int
+ * Function: _askfint
  * Description: Asks the user for an int with the 
  * "_request" message. If the input cannot be read 
  * into an integer type or the min/max values are not
  * respected the "_err_msg" will be displayed and
- * the program will read again from the stdin untill 
+ * the program will read again from the stdin until 
  * the user writes a valid entry.
  */
 static int _askfint(
@@ -84,13 +157,13 @@ static int _askfint(
 
     printf("%s",_request);
 
-    valid_input = scanf("%d", &d) && d >= _minval && d <= _maxval;
+    _valid_input = scanf("%d", &d) && d >= _minval && d <= _maxval;
     clean_buffer();
 
-    while( !valid_input ) {
+    while( !_valid_input ) {
         printf("%s",_err_msg);
 
-        valid_input = scanf("%d", &d) & d >= _minval && d <= _maxval;
+        _valid_input = scanf("%d", &d) & d >= _minval && d <= _maxval;
         clean_buffer();
     }
 
@@ -99,8 +172,8 @@ static int _askfint(
 
 /*
  * _askfdouble:
- *      const char *_request, const char *_err_msg,
- *      float _minval, float _maxval 
+ *      const double *_request, const char *_err_msg,
+ *      double _minval, double _maxval 
  *      -> float
  * Description: Asks the user for a float with the 
  * "_request" message. If the input cannot be read 
@@ -109,7 +182,7 @@ static int _askfint(
  * the program will read again from the stdin untill 
  * the user writes a valid entry.
  */
-float _askfdouble(
+static double _askfdouble(
         const char * restrict _request,
         const char * restrict _err_msg,
         const double _minval,
@@ -118,13 +191,11 @@ float _askfdouble(
     double lf;
 
     printf("%s",_request);
-    valid_input = scanf("%lf", &lf) && lf >= _minval && lf <= _maxval;
+    _valid_input = scanf("%lf", &lf) && lf >= _minval && lf <= _maxval;
     clean_buffer();
 
-    while( !valid_input ) {
-        printf("%s", _err_msg);
-
-        valid_input = scanf("%lf", &lf) && lf >= _minval && lf <= _maxval;
+    while( !_valid_input ) {
+        _valid_input = scanf("%lf", &lf) && lf >= _minval && lf <= _maxval;
         clean_buffer();
     }
 
@@ -143,10 +214,10 @@ float _askfdouble(
  * the program will read again from the stdin untill 
  * the user writes a valid entry.
  */
-char _askfchar(
+static char _askfchar(
         const char * restrict _request,
         const char * restrict _err_msg,
-        int (* _validate_char)(int)
+        int (* _valid_char)(int)
 ) {
     char c;
 
@@ -154,14 +225,14 @@ char _askfchar(
     c = getch();
     putchar('\n');
 
-    valid_input = (*_validate_char)(c);
+    _valid_input = (*_valid_char)(c);
 
-    while( !valid_input ) {
+    while( !_valid_input ) {
         printf("%s", _err_msg);
         c = getch();
         putchar('\n');
 
-        valid_input = (*_validate_char)(c);
+        _valid_input = (*_valid_char)(c);
     }
 
     return c;
@@ -174,7 +245,7 @@ char _askfchar(
  * string is larger than "_max_size" or it has invisible
  * charactes the sting will be cut off.
  */
-void _askfwrd(
+static void _askfwrd(
         char * restrict s,
         const char * restrict _request,
         const int _max_size
@@ -193,15 +264,13 @@ void _askfwrd(
 
     free(input);
 }
-
-/*
- * _askfline: char *s, const char *_request, int _max_size
+/* * _askfline: char *s, const char *_request, int _max_size
  * Description: Asks the user for a string whit the 
  * "_request" message and stores it in "s". If the input 
  * string is larger than "_max_size" the string will be cut
  * but the invisible characters won't be able to do so.
  */
-void _askfline(
+static void _askfline(
         char * restrict s,
         const char * restrict _request,
         const int _max_size
@@ -212,68 +281,97 @@ void _askfline(
     s[ strlen(s) - 1 ] = '\0';
 }
 
-//  ##### PUBLIC DECLARATIONS #####  \\
+static void _askfstrscr(
+        char * restrict s,
+        const char * restrict _request,
+        const char * restrict _err_msg,
+        const char * restrict _rng_msg,
+        int (* _valid_char)(int),
+        const int _min_len,
+        const int _max_len,
+        bool hidden
+) {
+#define RE_PRINT system(CLEAR); printf("%s", _request); \
+             for(int a = 0; a < i; a++) putchar(hidden ? '*' : s[a])
+    int i = 0;
+    char c;
 
-typedef struct {
-    char * request;
-    char * error_message;
-    int min_value;
-    int max_value;
-}int_request_t;
+    config_termios(false);
 
-#define pedirEntero(...) _pedir_entero((int_request_t){__VA_ARGS__})
+    tcsetattr(0, TCSANOW, &no_buffer);
+
+    system(CLEAR);
+    printf("%s", _request);
+
+    while( 1 ) {
+        c = getchar();
+
+        if( c == 127 ) {
+            i -= (i) ? 1 : 0;
+
+            RE_PRINT;
+        } else if( _valid_char(c) ) {
+            if( i == _max_len ) {
+
+                if( c == '\n' ) break;
+
+                printf("\n%s", _rng_msg);
+
+                getchar();
+                RE_PRINT;
+            } else {
+                putchar( hidden ? '*' : c );
+                s[i++] = c;
+            }
+
+        } else if( c == '\n' ) {
+            if( i >= _min_len) break;
+            else {
+                printf("\n%s", _rng_msg);
+
+                getchar();
+                RE_PRINT;
+            }
+        } else {
+            printf("\n%s", _err_msg);
+            getchar();
+
+            RE_PRINT;
+        }
+    }
+
+    s[i] = '\0';
+
+    tcsetattr(0, TCSANOW, &normal);
+}
+
+#undef RE_PRINT
 
 int _pedir_entero( int_request_t args ) {
     args.min_value = args.min_value ? args.min_value : INT_MIN;
     args.max_value = args.max_value ? args.max_value : INT_MAX;
 
-    return _askfint(args.request       ? args.request       : "",
-                    args.error_message ? args.error_message : "",
+    return _askfint(args.request       ? args.request       : " > ",
+                    args.error_message ? args.error_message : " > ",
                     args.min_value     , args.max_value);
 }
 
-typedef struct {
-    char * request;
-    char * error_message;
-    int (* validate_char)(int);
-} char_request_t;
-
-#define pedirCaracter(...) _pedir_caracter((char_request_t){__VA_ARGS__})
-
 char _pedir_caracter(char_request_t args) {
-    args.validate_char = args.validate_char ? args.validate_char : isgraph;
+    args.valid_char = args.valid_char ? args.valid_char : isgraph;
 
-    return _askfchar(args.request       ? args.request       : "",
-                     args.error_message ? args.error_message : "",
-                     args.validate_char);
+    return _askfchar(args.request       ? args.request       : " > ",
+                     args.error_message ? args.error_message : " > ",
+                     args.valid_char);
 }
-
-typedef struct {
-    char * request;
-    char * error_message;
-    double min_value;
-    double max_value;
-} double_request_t;
-
-#define pedirDoble(...) _pedir_doble((double_request_t){__VA_ARGS__})
 
 double _pedir_doble(double_request_t args) {
     args.min_value = args.min_value ? args.min_value : -FLT_MAX;
     args.max_value = args.max_value ? args.max_value :  FLT_MAX;
 
-    return _askfdouble(args.request       ? args.request       : "",
-                       args.error_message ? args.error_message : "",
+    return _askfdouble(args.request       ? args.request       : " > ",
+                       args.error_message ? args.error_message : " > ",
                        args.min_value, args.max_value);
 }
-
-typedef struct {
-    char * s;
-    char * request;
-    int max_len;
-} string_request_t;
-
-#define pedirPalabra(...) _pedir_cadena(false, (string_request_t){__VA_ARGS__})
-#define pedirLinea(...)   _pedir_cadena( true, (string_request_t){__VA_ARGS__})
 
 void _pedir_cadena(bool line, string_request_t args) {
     if( args.s ) {
@@ -281,11 +379,11 @@ void _pedir_cadena(bool line, string_request_t args) {
 
         if( line ) {
             _askfline(args.s,
-                     args.request ? args.request : "",
+                     args.request ? args.request : " > ",
                      args.max_len);
         } else {
             _askfwrd(args.s,
-                     args.request ? args.request : "",
+                     args.request ? args.request : " > ",
                      args.max_len);
         }
 
@@ -295,5 +393,48 @@ void _pedir_cadena(bool line, string_request_t args) {
     fprintf(stderr, "The function requires a place to store the string\n");
 }
 
+void _pedir_cadenascr( stringscr_request_t args ) {
+    if( args.s ) {
+        args.valid_char = args.valid_char ? args.valid_char : isgraph;
+
+        args.min_len = args.min_len ? args.min_len : 0;
+        args.max_len = args.max_len ? args.max_len : 100;
+
+        _askfstrscr(args.s,
+                         args.request ? args.request : " > ",
+                         args.error_message ? args.error_message : "Invalid character",
+                         args.range_message ? args.range_message : "String out of range",
+                         args.valid_char,
+                         args.min_len, args.max_len,
+                         args.hidden);
+        return;
+        }
+
+    fprintf(stderr, "The function requires a place to store the string\n");
+
+}
+
+//  ##### PUBLIC DECLARATIONSDECLARATIONS #########
+//  # Macrofunctions and functions for direct use,#
+//  # these are visible among all                 #
+//  # compiled-together translation units         #
+//  ###############################################
+
+#define pedirEntero(...) _pedir_entero((int_request_t){__VA_ARGS__})
+
+#define pedirCaracter(...) _pedir_caracter((char_request_t){__VA_ARGS__})
+
+#define pedirDoble(...) _pedir_doble((double_request_t){__VA_ARGS__})
+
+#define pedirPalabra(...) _pedir_cadena(false, (string_request_t){__VA_ARGS__})
+#define pedirLinea(...)   _pedir_cadena( true, (string_request_t){__VA_ARGS__})
+
+#define pedirCadenaScr(...) _pedir_cadenascr((stringscr_request_t){__VA_ARGS__})
+
+inline void clean_buffer(void) {
+    char c;
+
+    while( (c = getchar()) != '\n' &&  c != EOF );
+}
 
 #endif // end _EASY_IO_H
