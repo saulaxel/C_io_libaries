@@ -24,7 +24,7 @@
 #ifndef _EASY_IN_H
 #define _EASY_IN_H
 
-//  ##### Dependencies #####  \\
+//  ##### Dependencies #####
 
 #include <stdio.h>     // Data output (printf, fgets)
 #include <stdlib.h>    // Allocating memory (malloc)
@@ -110,7 +110,7 @@ typedef struct {
     bool hidden;
 } stringscr_request_t;
 
-// ##### FUNCTION PROTOTYPES ##### \\
+// ##### FUNCTION PROTOTYPES #####
 
 static int _askfint(const char * restrict, const char * restrict,
         const int _minval, const int _maxval);
@@ -163,7 +163,7 @@ static int _askfint(
     while( !_valid_input ) {
         printf("%s",_err_msg);
 
-        _valid_input = scanf("%d", &d) & d >= _minval && d <= _maxval;
+        _valid_input = scanf("%d", &d) && d >= _minval && d <= _maxval;
         clean_buffer();
     }
 

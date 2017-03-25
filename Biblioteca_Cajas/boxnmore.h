@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-//  ##### PRIVATE DECLARATIONS #####  \\
+//  ##### PRIVATE DECLARATIONS #####
 
 #ifdef _WIN32
     #define HS "\xCD"    // Horizontal side
@@ -241,7 +241,7 @@ void _pdotted(const char *_str, int _space) {
     pDotLine(0);
 }
 
-//  ##### PUBLIC DECLARATIONS #####  \\
+//  ##### PUBLIC DECLARATIONS #####
 
 /*
  * imprimeEnCuadro: char *cadena -> void
