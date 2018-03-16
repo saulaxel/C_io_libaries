@@ -31,78 +31,81 @@
 #include <stdbool.h>   // _Bool as bool
 
 typedef struct {
-    char * request;
-    char * error_message;
-    int min_value;
-    int max_value;
+    int _;
+    const char * prompt;
+    const char * error_message;
+    int min;
+    int max;
 } int_request_t;
 
 typedef struct {
-    char * request;
-    char * error_message;
-    int (* valid_char)(int);
-} char_request_t;
-
-typedef struct {
-    char * request;
-    char * error_message;
-    double min_value;
-    double max_value;
+    int _;
+    const char * prompt;
+    const char * error_message;
+    double min;
+    double max;
 } double_request_t;
 
 typedef struct {
+    int _;
     char * s;
-    char * request;
-    int max_len;
+    const char * prompt;
+    int max;
 } string_request_t;
 
 typedef struct {
+    int _;
+    const char * prompt;
+    const char * error_message;
+    int (* valid_char)(int);
+    const char * sep;
+    bool hidden;
+} char_request_t;
+
+typedef struct {
+    int _;
     char * s;
-    char * request;
-    char * error_message;
-    char * range_message;
+    const char * prompt;
+    const char * error_message;
+    const char * range_message;
 
     int (* valid_char)(int);
+    int (* valid_str)(const char *);
 
-    int min_len;
-    int max_len;
+    int min;
+    int max;
 
     bool hidden;
 } stringscr_request_t;
 
 // ##### FUNCTION PROTOTYPES #####
 
-static int _askfint(const char * restrict, const char * restrict,
-        const int _minval, const int _maxval);
-static double _askfdouble(const char * restrict, const char * restrict,
-        const double _minval, const double _maxval);
-static char _askfchar(const char * restrict, const char * restrict,
-        int (* _valid_char)(int));
-static void _askfwrd(char * restrict, const char * restrict,
-        const int _max_size);
-static void _askfline(char * restrict, const char * restrict,
-        const int _max_size);
-
-static void _pedir_cadena(bool line, string_request_t args);
-static double _pedir_doble(double_request_t args);
-static char _pedir_caracter(char_request_t args);
-static int _pedir_entero( int_request_t args );
-
-extern void clean_buffer(void);
+void get_string_helper(stringscr_request_t args);
+void get_word_line_helper(bool line, string_request_t args);
+double get_double_helper(double_request_t args);
+char get_char_helper(char_request_t args);
+int get_int_helper( int_request_t args );
 
 //  ###############################################
 //  # Macrofunctions for direct use               #
 //  ###############################################
 
-#define pedirEntero(...) _pedir_entero((int_request_t){__VA_ARGS__})
+#define getInt(...)                                                         \
+        get_int_helper((int_request_t) { ._=0, __VA_ARGS__ })
 
-#define pedirCaracter(...) _pedir_caracter((char_request_t){__VA_ARGS__})
+#define getChar(...)                                                        \
+        get_char_helper((char_request_t) { ._=0, __VA_ARGS__ })
 
-#define pedirDoble(...) _pedir_doble((double_request_t){__VA_ARGS__})
+#define getDouble(...)                                                      \
+        get_double_helper((double_request_t) { ._=0, __VA_ARGS__})
 
-#define pedirPalabra(...) _pedir_cadena(false, (string_request_t){__VA_ARGS__})
-#define pedirLinea(...)   _pedir_cadena( true, (string_request_t){__VA_ARGS__})
+#define getWord(...)                                                        \
+        get_word_line_helper(false, (string_request_t) { ._=0,  __VA_ARGS__ })
 
-#define pedirCadenaScr(...) _pedir_cadenascr((stringscr_request_t){__VA_ARGS__})
+#define getLine(...)                                                        \
+        get_word_line_helper_helper(true, (string_request_t){ ._=0, __VA_ARGS__ })
+
+#define getString(...)                                                      \
+        get_string_helper((stringscr_request_t){ ._=0, __VA_ARGS__ })
 
 #endif // end _EASY_IO_H
